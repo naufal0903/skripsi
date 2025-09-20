@@ -1,0 +1,2096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>System Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #121212;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 400;
+            color: #ffffff;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #4A90E2;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+         /* New control button styles */
+        .control-panel {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-button {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        
+        .start-button {
+            background-color: #2a533b;
+            color: white;
+        }
+        
+        .stop-button {
+            background-color: #531d17;
+            color: white;
+        }
+        
+        .timer-display {
+            font-size: 1.2rem;
+            color: #ffffff;
+            text-align: center;
+            margin-top: 10px;
+            font-family: monospace;
+        }
+        
+        .timer-label {
+            font-size: 0.8rem;
+            color: #aaaaaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        
+        .status-text {
+            color: #4A90E2;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 0.5fr 2.5fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .section-box {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .section-title {
+            font-size: 0.9rem;
+            color: #aaaaaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .download-btn.clear {
+            background-color: #e74c3c;
+            margin-left: 10px;
+        }
+
+        .download-btn.clear:hover {
+            background-color: #c0392b;
+        }
+        
+        .battery-container {
+            position: relative;
+            width: 100%;
+            height: 12px;
+            margin: 20px 0;
+            background-color: #333333;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .battery-fill {
+            height: 100%;
+            background-color: #4A90E2;
+            border-radius: 6px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        /* Popup Notification Styles */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .popup-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .popup-content {
+            background-color: #222;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #444;
+        }
+
+        .popup-title {
+            font-size: 1.5rem;
+            color: #e74c3c;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .popup-message {
+            font-size: 1rem;
+            color: #eee;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .popup-close {
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+
+        .popup-close:hover {
+            background-color: #3a7bc8;
+        }
+        
+        .battery-fill.low {
+            background-color: #e74c3c;
+        }
+        
+        .battery-fill.medium {
+            background-color: #f39c12;
+        }
+        
+        .battery-fill.high {
+            background-color: #27ae60;
+        }
+        
+        .battery-percentage {
+            font-size: 1.5rem;
+            color: #ffffff;
+            font-weight: 300;
+        }
+        
+        .metrics-row {
+            display:flexbox;
+            justify-content:center;
+            align-items: center;
+            margin: 5px ;
+        }
+        
+        .metric-label {
+            font-size: 0.8rem;
+            color: #888888;
+            text-transform: uppercase;
+        }
+        
+        .metric-value {
+            font-size: 1rem;
+            color: #ffffff;
+            font-weight: 300;
+        }
+        
+        .relay-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .relay-control {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .relay-label {
+            font-size: 0.9rem;
+            color: #aaaaaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .switch {
+            position: relative;
+            width: 50px;
+            height: 28px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333333;
+            transition: 0.4s;
+            border-radius: 28px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #4A90E2;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        
+        .relay-status {
+            font-size: 0.8rem;
+            color: #888888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 30px;
+        }
+        
+        .relay-status.active {
+            color: #4A90E2;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .chart-card {
+            border-radius: 8px;
+            padding: 5px;
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .chart-title {
+            font-size: 0.9rem;
+            color: #aaaaaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 0fr 1fr 2fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .download-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-left: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        /* Confirmation Popup Styles */
+        .confirmation-popup {
+            background-color: #222;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #444;
+        }
+
+        .confirmation-title {
+            font-size: 1.3rem;
+            color: #f39c12;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .confirmation-message {
+            font-size: 1rem;
+            color: #eee;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .confirmation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .confirmation-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .confirmation-btn.confirm {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .confirmation-btn.confirm:hover {
+            background-color: #c0392b;
+        }
+
+        .confirmation-btn.cancel {
+            background-color: #4A90E2;
+            color: white;
+        }
+
+        .confirmation-btn.cancel:hover {
+            background-color: #3a7bc8;
+        }
+
+        .download-btn:hover {
+            background-color: #27ae60;
+        }
+        .vertical-progress {
+            width: 10px;
+            height: 250px;
+            background-color: #333333;
+            border-radius: 10px;
+            position:relative;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+        
+        .vertical-progress-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background-color: #4A90E2;
+            border-radius: 10px;
+            transition: height 0.5s ease;
+            height: 0%;
+        }
+        
+        /* New Gauge Styles */
+        .gauge-container {
+            width: 200px;
+            height: 200px;
+            position: relative;
+            margin: 0 auto;
+        }
+        
+        .gauge-body {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: #333;
+            position: relative;
+            overflow: hidden;
+            border: 8px solid #222;
+           
+        }
+        
+        .gauge-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: conic-gradient(
+                #27ae60 0% 33%,
+                #f39c12 33% 66%,
+                #e74c3c 66% 100%
+            );
+            transform: rotate(-135deg);
+            transform-origin: center;
+            clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 50% 0%);
+        }
+        
+        .gauge-cover {
+            width: 75%;
+            height: 75%;
+            background: #121212;
+            border-radius: 50%;
+            position: absolute;
+            top: 12.5%;
+            left: 12.5%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 1.5rem;
+            color: white;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        
+        .gauge-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .gauge-label {
+            font-size: 1rem;
+            text-transform: uppercase;
+            color: #aaa;
+        }
+        
+        .gauge-ticks {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+        
+        .gauge-tick {
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            left: 50%;
+            top: 5px;
+            transform-origin: bottom center;
+        }
+        
+        .gauge-tick-label {
+            position: absolute;
+            font-size: 0.7rem;
+            transform-origin: center;
+        }
+        
+        .empty-box {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+      .history-table-container {
+    overflow-x: auto;
+    margin-top: 15px;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.history-table th, 
+.history-table td {
+    padding: 8px 12px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-table th {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: #ffffff;
+    font-weight: 500;
+    position: sticky;
+    top: 0;
+}
+
+.history-table td {
+    color: #ffffff;
+}
+
+.history-table tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.history-table tr:hover {
+    background-color: rgba(74, 144, 226, 0.1);
+}
+        
+        .connection-status {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+        
+        .connection-status.connected {
+            color: #27ae60;
+            border: 1px solid #27ae60;
+        }
+        
+        .connection-status.disconnected {
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+        
+        .last-update {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .last-update-label {
+            font-size: 0.75rem;
+            color: #888888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .last-update-time {
+            font-size: 1rem;
+            color: #ffffff;
+            font-weight: 300;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .bottom-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+        <!-- Popup Notification -->
+    <div class="popup-overlay" id="popupNotification">
+        <div class="popup-content">
+            <div class="popup-title">Monitoring Stopped</div>
+            <div class="popup-message" id="popupMessage"></div>
+            <button class="popup-close" id="popupClose">OK</button>
+        </div>
+    </div>
+
+        <!-- Confirmation Popup -->
+    <div class="popup-overlay" id="confirmationPopup">
+        <div class="confirmation-popup">
+            <div class="confirmation-title">Clear Table</div>
+            <div class="confirmation-message">Are you sure you want to clear the history table? This will remove all displayed data but keep the full history for export.</div>
+            <div class="confirmation-buttons">
+                <button class="confirmation-btn confirm" id="confirmClear">Yes, Clear</button>
+                <button class="confirmation-btn cancel" id="cancelClear">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="connection-status" id="connectionStatus">Connecting...</div>
+
+    <div class="control-panel">
+       <button class="control-button" id="exportExcel" style="background-color: #2ecc71;"></button>
+    </div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="control-panel">
+            <button class="control-button start-button" id="startMonitoring">Start Monitoring</button>
+            <button class="control-button stop-button" id="stopMonitoring" disabled>Stop Monitoring</button>
+        </div>
+         <div class="timer-label">Running Time</div>
+        <div class="timer-display" id="runningTime">00:00:00</div>
+            <h1>System Monitor</h1>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <div class="status-text">OSCAR</div>
+            </div>
+        </div>
+        
+        <div class="main-grid">
+            <div class="left-column">
+                <div class="section-box">
+                    <div class="section-title">Battery</div>
+                    <div class="battery-container">
+                        <div class="battery-fill" id="batteryFill"></div>
+                    </div>
+                    <div class="battery-percentage" id="batteryPercentage">0%</div>
+                    
+                    <div style="margin-top: 30px;">
+                        <div class="metrics-row">
+                            <span class="metric-label">Voltage:</span>
+                            <span class="metric-value" id="voltage">0.0 V</span>
+                        </div>
+                        <div class="metrics-row">
+                            <span class="metric-label">Current:</span>
+                            <span class="metric-value" id="current">0.0 A</span>
+                        </div>
+                        <div class="metrics-row">
+                            <span class="metric-label">Power:</span>
+                            <span class="metric-value" id="power">0.0 W</span>
+                        </div>
+                        <div class="metrics-row">
+                            <span class="metric-label">Energy:</span>
+                            <span class="metric-value" id="energy">0.0 kWh</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-box">
+                    <div class="section-title">Control Throttle</div>
+                    <div class="relay-controls">
+                        <div class="relay-control">
+                            <div class="relay-label">5V</div>
+                            <label class="switch">
+                                <input type="checkbox" id="relay1Switch">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="relay-status" id="relay1Status">OFF</div>
+                        </div>
+                        <div class="relay-control">
+                            <div class="relay-label">3V</div>
+                            <label class="switch">
+                                <input type="checkbox" id="relay2Switch">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="relay-status" id="relay2Status">OFF</div>
+                        </div>
+                        <div class="relay-control">
+                            <div class="relay-label">1V</div>
+                            <label class="switch">
+                                <input type="checkbox" id="relay3Switch">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="relay-status" id="relay3Status">OFF</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-title">Chart Voltage</div>
+                    <canvas id="voltageChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Chart Power</div>
+                    <canvas id="powerChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Chart Current</div>
+                    <canvas id="currentChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Chart Energy</div>
+                    <canvas id="energyChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bottom-grid">
+            <div class="section-box">
+                <div class="section-title">Temperature</div>
+                <div class="vertical-progress">
+                    <div class="vertical-progress-fill" id="temperatureFill"></div>
+                </div>
+                <div class="metric-value" id="temperature" style="margin-top: 15px;">0.0°C</div>
+            </div>
+            
+        <div class="section-box">
+            <div class="section-title">RPM & TPS</div>
+            <div class="gauge-container">
+                <div class="gauge-body">
+                    <div class="gauge-fill" id="rpmGaugeFill"></div>
+                    <div class="gauge-ticks" id="rpmGaugeTicks"></div>
+                    <div class="gauge-cover">
+                        <div class="gauge-value" id="rpmGaugeValue">0</div>
+                        <div class="gauge-label">RPM</div>
+                        <div style="margin-top: 15px; font-size: 1rem;">
+                            <span style="color: #aaa;">TPS:</span>
+                            <span id="tpsValue" style="font-size: 1.2rem;">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            
+<div class="section-box">
+    <div class="section-title">Measurement History (Last 5 Records)
+        <button id="downloadHistory" class="download-btn">Download as Excel</button>
+        <button id="clearHistory" class="download-btn" style="background-color: #e74c3c;">Clear Table</button>
+    </div>
+    <div class="history-table-container">
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Voltage (V)</th>
+                    <th>Current (A)</th>
+                    <th>Power (W)</th>
+                    <th>Energy (kWh)</th>
+                    <th>Temp (°C)</th>
+                    <th>Battery (%)</th>
+                    <th>RPM</th>
+                    <th>TPS (%)</th>
+                </tr>
+            </thead>
+            <tbody id="history-table-body">
+                <!-- Data akan diisi otomatis -->
+                <tr>
+                    <td colspan="8" style="text-align: center;">No data available</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+        
+        <div class="last-update">
+            <div class="last-update-label">Last Update</div>
+            <div class="last-update-time" id="lastUpdate">—</div>
+        </div>
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    <script type="module">
+
+        // Array untuk semua data historis (full history)
+        const fullMeasurementHistory = [];
+        const displayMeasurementHistory = [];
+        let sessionMeasurementHistory = [];
+        
+        document.getElementById('clearHistory').addEventListener('click', function() {
+            showConfirmationPopup();
+        });
+        // Fungsi untuk menampilkan popup
+        function showPopup(message) {
+            const popup = document.getElementById('popupNotification');
+            const popupMessage = document.getElementById('popupMessage');
+            
+            popupMessage.textContent = message;
+            popup.classList.add('active');
+            
+            // Tambahkan event listener untuk tombol close
+            document.getElementById('popupClose').addEventListener('click', function() {
+                popup.classList.remove('active');
+            }, { once: true }); // Hanya sekali saja
+        }
+
+        // Fungsi untuk menyimpan data ke localStorage
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('measurementHistory', JSON.stringify(fullMeasurementHistory));
+            } catch (e) {
+                console.error("Error saving to localStorage:", e);
+                // Jika localStorage penuh, kita bisa implementasi cleanup di sini
+            }
+        }
+
+        // Fungsi untuk load data dari localStorage saat inisialisasi
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('measurementHistory');
+            if (savedData) {
+                try {
+                    const parsedData = JSON.parse(savedData);
+                    fullMeasurementHistory.push(...parsedData);
+                    
+                    // Ambil 5 data terbaru untuk ditampilkan
+                    const recentData = parsedData.slice(-MAX_DISPLAY_ITEMS).reverse();
+                    displayMeasurementHistory.push(...recentData);
+                    updateHistoryTable();
+                } catch (e) {
+                    console.error("Error parsing saved data:", e);
+                }
+            }
+        }
+
+        // Array untuk menyimpan history data
+        const measurementHistory = [];
+        const MAX_DISPLAY_ITEMS = 5; // Jumlah maksimal data yang ditampilkan
+
+        // Fungsi untuk mengunduh data sebagai Excel
+        document.getElementById('downloadHistory').addEventListener('click', function() {
+            if (sessionMeasurementHistory.length === 0) {
+                alert("No data available to download");
+                return;
+            }
+
+            // Format data untuk Excel
+            const excelData = sessionMeasurementHistory.map(item => ({
+                'Timestamp': item.timestamp,
+                'Voltage (V)': item.voltage.toFixed(2),
+                'Current (A)': item.current.toFixed(2),
+                'Power (W)': item.power.toFixed(2),
+                'Energy (kWh)': item.energy.toFixed(2),
+                'Temperature (°C)': item.temperature.toFixed(1),
+                'Battery (%)': item.battery,
+                'RPM': item.rpm,
+                'TPS (%)': item.tps
+            }));
+
+            // Buat worksheet
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            
+            // Buat workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "MeasurementData");
+            
+            // Generate nama file
+            const dateStr = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            const fileName = `Full_Measurement_History_${dateStr}.xlsx`;
+            
+            // Download file
+            XLSX.writeFile(wb, fileName);
+        });
+        // Fungsi untuk memformat data ke CSV (alternatif)
+        function exportToCSV() {
+            if (measurementHistory.length === 0) return "";
+            
+            const headers = Object.keys(measurementHistory[0]).join(",") + "\n";
+            const rows = measurementHistory.map(item => 
+                Object.values(item).map(val => 
+                    typeof val === 'string' ? `"${val}"` : val
+                ).join(",")
+            ).join("\n");
+            
+            return headers + rows;
+        }
+
+        // Fungsi untuk menambahkan data ke history
+        function addToHistory() {
+            if (!isMonitoring) return;
+            
+            const now = new Date();
+            const timestamp = formatWIB(now);
+            
+            const newData = {
+                timestamp,
+                voltage: chartData.voltage.currentValue || 0,
+                current: chartData.current.currentValue || 0,
+                power: chartData.power.currentValue || 0,
+                energy: chartData.energy.currentValue || 0,
+                temperature: parseFloat(document.getElementById('temperature').textContent) || 0,
+                battery: parseInt(document.getElementById('batteryPercentage').textContent) || 0,
+                rpm: parseInt(document.getElementById('rpmGaugeValue').textContent) || 0,
+                tps: parseInt(document.getElementById('tpsValue').textContent) || 0
+            };
+             // Simpan ke full history
+            fullMeasurementHistory.push(newData);
+            sessionMeasurementHistory.push(newData);
+
+            if (displayMeasurementHistory.length > MAX_DISPLAY_ITEMS) {
+                displayMeasurementHistory.pop();
+            }
+
+            if (isMonitoring) {
+                displayMeasurementHistory.unshift(newData);
+        
+            if (displayMeasurementHistory.length > MAX_DISPLAY_ITEMS) {
+                    displayMeasurementHistory.pop();
+                }
+            }
+
+
+            saveToLocalStorage();
+            updateHistoryTable();
+        }
+        // Fungsi format waktu ke WIB (UTC+7)
+        function formatWIB(date) {
+            // Offset WIB adalah UTC+7
+            const offset = 7 * 60 * 60 * 1000; // 7 jam dalam milidetik
+            const dateWIB = new Date(date.getTime() + offset);
+            
+            return dateWIB.toISOString()
+                .replace('T', ' ')
+                .replace(/\.\d+Z$/, ' WIB');
+        }
+
+        // Fungsi untuk update tabel history
+        function updateHistoryTable() {
+            const tbody = document.getElementById('history-table-body');
+            tbody.innerHTML = '';
+            
+            if (displayMeasurementHistory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No data available</td></tr>`;
+                return;
+            }
+            
+            displayMeasurementHistory.forEach(data => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${data.timestamp || '—'}</td>
+                    <td>${data.voltage?.toFixed(2) || '0.00'}</td>
+                    <td>${data.current?.toFixed(2) || '0.00'}</td>
+                    <td>${data.power?.toFixed(2) || '0.00'}</td>
+                    <td>${data.energy?.toFixed(3) || '0.000'}</td>
+                    <td>${data.temperature?.toFixed(1) || '0.0'}</td>
+                    <td>${data.battery || '0'}</td>
+                    <td>${data.rpm || '0'}</td>
+                    <td>${data.tps || '0'}%</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Panggil addToHistory secara berkala (misal setiap 5 detik)
+        setInterval(addToHistory,1000);
+
+
+        // Fungsi format tanggal dan waktu lengkap WIB
+        function formatFullWIB(date) {
+            const options = {
+                timeZone: 'Asia/Jakarta',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            
+            return date.toLocaleString('id-ID', options) + ' WIB';
+        }
+
+          document.getElementById('exportExcel').addEventListener('click', function() {
+            if (!monitoringSession.startTime) {
+                alert("Monitoring belum dimulai atau tidak ada data");
+                return;
+            }
+            exportToExcel();
+        });
+
+
+        function exportToExcel() {
+            if (!monitoringSession.startTime) {
+                alert("Tidak ada data monitoring yang tersedia");
+                return;
+            }
+
+            // Format data untuk Excel
+            const excelData = formatForExcel(monitoringSession);
+
+            // Buat workbook
+            const wb = XLSX.utils.book_new();
+            
+            // Buat worksheet untuk data point
+            const wsData = XLSX.utils.json_to_sheet(excelData.dataPoints);
+            XLSX.utils.book_append_sheet(wb, wsData, "Data Monitoring");
+            
+            // Buat worksheet untuk ringkasan
+            const summaryData = [{
+                "Start Time": formatFullWIB(monitoringSession.startTime),
+                "End Time": monitoringSession.endTime ? formatFullWIB(monitoringSession.endTime) : "Masih Berjalan",
+                "Duration": monitoringSession.duration ? formatTime(monitoringSession.duration) : "Masih Berjalan"
+            }];
+            
+            // Buat worksheet untuk nilai akhir
+            const finalValuesData = [{
+                "Parameter": "Voltage",
+                "Value": monitoringSession.finalValues.voltage || chartData.voltage.currentValue,
+                "Unit": "V"
+            }, {
+                "Parameter": "Current",
+                "Value": monitoringSession.finalValues.current || chartData.current.currentValue,
+                "Unit": "A"
+            }, {
+                "Parameter": "Power",
+                "Value": monitoringSession.finalValues.power || chartData.power.currentValue,
+                "Unit": "W"
+            }, {
+                "Parameter": "Energy",
+                "Value": monitoringSession.finalValues.energy || chartData.energy.currentValue,
+                "Unit": "kWh"
+            }, {
+                "Parameter": "Temperature",
+                "Value": monitoringSession.finalValues.temperature || document.getElementById('temperature').textContent,
+                "Unit": "°C"
+            }, {
+                "Parameter": "Battery",
+                "Value": monitoringSession.finalValues.battery || document.getElementById('batteryPercentage').textContent,
+                "Unit": "%"
+            }, {
+                "Parameter": "RPM",
+                "Value": monitoringSession.finalValues.rpm || document.getElementById('rpmGaugeValue').textContent,
+                "Unit": "RPM"
+            }];
+            
+            const wsFinal = XLSX.utils.json_to_sheet(finalValuesData);
+            XLSX.utils.book_append_sheet(wb, wsFinal, "Nilai Akhir");
+
+            // Export ke file Excel
+            const fileName = `Monitoring_${formatDateForFilename(monitoringSession.startTime)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        function formatForExcel(sessionData) {
+            const dataPoints = [];
+            const maxLength = Math.max(
+                ...Object.values(sessionData.data).map(arr => arr.length)
+            );
+
+            for (let i = 0; i < maxLength; i++) {
+                // Cari timestamp yang valid dari data manapun yang tersedia
+                const timestamp = 
+                    sessionData.data.voltage[i]?.timestamp ||
+                    sessionData.data.current[i]?.timestamp ||
+                    sessionData.data.power[i]?.timestamp ||
+                    sessionData.data.energy[i]?.timestamp ||
+                    sessionData.data.temperature[i]?.timestamp ||
+                    sessionData.data.battery[i]?.timestamp ||
+                    sessionData.data.rpm[i]?.timestamp ||
+                    new Date(sessionData.startTime.getTime() + (i * 1000)); // Fallback
+
+                dataPoints.push({
+                    "Timestamp": formatWIB(new Date(timestamp)),
+                    "Voltage (V)": sessionData.data.voltage[i]?.value ?? "",
+                    "Current (A)": sessionData.data.current[i]?.value ?? "",
+                    "Power (W)": sessionData.data.power[i]?.value ?? "",
+                    "Energy (kWh)": sessionData.data.energy[i]?.value ?? "",
+                    "Temperature (°C)": sessionData.data.temperature[i]?.value ?? "",
+                    "Battery (%)": sessionData.data.battery[i]?.value ?? "",
+                    "RPM": sessionData.data.rpm[i]?.value ?? ""
+                });
+            }
+
+            return {
+                dataPoints: dataPoints
+            };
+        }
+
+        function formatDateForFilename(date) {
+            const d = new Date(date);
+            return [
+                d.getFullYear(),
+                (d.getMonth() + 1).toString().padStart(2, '0'),
+                d.getDate().toString().padStart(2, '0'),
+                d.getHours().toString().padStart(2, '0'),
+                d.getMinutes().toString().padStart(2, '0'),
+                d.getSeconds().toString().padStart(2, '0')
+            ].join('-');
+        }
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC2LrzgGpo94JNMtU1Ob3_9L_pJBm4qOBY",
+            authDomain: "test-59142.firebaseapp.com",
+            databaseURL: "https://test-59142-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "test-59142",
+            storageBucket: "test-59142.firebasestorage.app",
+            messagingSenderId: "610553203978",
+            appId: "1:610553203978:web:5ecb05000df4c37585bef3"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
+        // Firebase references for monitoring data
+        var dataRef1 = database.ref('monitoring/Voltage (V)');
+        var dataRef2 = database.ref('monitoring/Current (A)');
+        var dataRef3 = database.ref('monitoring/Power (W)');
+        var dataRef4 = database.ref('monitoring/Energy (kWh)');
+        var dataRef5 = database.ref('monitoring/Temperature (C)');
+        var dataRef6 = database.ref('monitoring/Percentage (%)');
+        var dataRef7 = database.ref('monitoring/RPM');
+        var dataRef8 = database.ref('monitoring/TPS (%)');
+        
+        // Firebase references for relay control
+        var relay1Ref = database.ref('relays/relay1');
+        var relay2Ref = database.ref('relays/relay2');
+        var relay3Ref = database.ref('relays/relay3');
+        
+        // Connection status
+        var connectionStatus = document.getElementById('connectionStatus');
+        var isConnected = false;
+        
+        let monitoringSession = {
+            startTime: null,
+            endTime: null,
+            duration: null,
+            data: {
+                voltage: [],
+                current: [],
+                power: [],
+                energy: [],
+                temperature: [],
+                battery: [],
+                rpm: [],
+                tps: []
+            },
+            finalValues: {}
+        };
+
+        // Chart configuration
+        const chartConfig = {
+        type: 'line',
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+            },
+                scales: {
+                    x: {
+                        display: true
+                    },
+                    y: {
+                        display: true,
+                    }
+                }
+            }
+        };
+
+        // Monitoring control variables
+        let isMonitoring = false;
+        let startTime = null;
+        let timerInterval = null;
+        
+        // DOM Elements
+        const startButton = document.getElementById('startMonitoring');
+        const stopButton = document.getElementById('stopMonitoring');
+        const runningTimeDisplay = document.getElementById('runningTime');
+        
+        // Format time as HH:MM:SS
+        function formatTime(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            return [
+                hrs.toString().padStart(2, '0'),
+                mins.toString().padStart(2, '0'),
+                secs.toString().padStart(2, '0')
+            ].join(':');
+        }
+        
+        // Update the running time display
+        function updateTimer() {
+            if (startTime) {
+                const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                runningTimeDisplay.textContent = formatTime(elapsedSeconds);
+            }
+        }
+        
+        // Start monitoring function
+        function startMonitoring() {
+            if (isMonitoring) return;
+
+            displayMeasurementHistory.length = 0;
+            sessionMeasurementHistory.length = 0;
+            updateHistoryTable();
+
+            setupFirebaseListeners();
+            isMonitoring = true;
+            startTime = Date.now();
+            
+            // Inisialisasi session monitoring
+            monitoringSession = {
+                startTime: new Date(),
+                endTime: null,
+                duration: null,
+                data: {
+                    voltage: [],
+                    current: [],
+                    power: [],
+                    energy: [],
+                    temperature: [],
+                    battery: [],
+                    rpm: []
+                },
+                finalValues: {}
+            };
+            
+            // Enable/disable buttons
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            
+            // Start timer
+            timerInterval = setInterval(updateTimer, 1000);
+            updateTimer();
+            
+            // Initialize data references if not already done
+            const dataRefs = {
+                voltage: database.ref('monitoring/Voltage (V)'),
+                current: database.ref('monitoring/Current (A)'),
+                power: database.ref('monitoring/Power (W)'),
+                energy: database.ref('monitoring/Energy (kWh)'),
+                temperature: database.ref('monitoring/Temperature (C)'),
+                battery: database.ref('monitoring/Percentage (%)'),
+                rpm: database.ref('monitoring/RPM')
+            };
+            
+            // Set up listeners
+            function setupFirebaseListeners() {
+                dataRef1.on('value', voltageHandler);
+                dataRef2.on('value', currentHandler);
+                dataRef3.on('value', powerHandler);
+                dataRef4.on('value', energyHandler);
+                dataRef5.on('value', temperatureHandler);
+                dataRef6.on('value', batteryHandler);
+                dataRef7.on('value', rpmHandler);
+                dataRef8.on('value', tpsHandler);
+            }
+
+        }
+        // Stop monitoring function
+        function stopMonitoring() {
+            if (!isMonitoring) return;
+            
+            isMonitoring = false;
+            monitoringSession.endTime = new Date();
+            monitoringSession.duration = Math.floor((monitoringSession.endTime - monitoringSession.startTime) / 1000);
+            
+            // Simpan nilai akhir
+            monitoringSession.finalValues = {
+                voltage: chartData.voltage.currentValue,
+                current: chartData.current.currentValue,
+                power: chartData.power.currentValue,
+                energy: chartData.energy.currentValue,
+                temperature: document.getElementById('temperature').textContent,
+                battery: document.getElementById('batteryPercentage').textContent,
+                rpm: document.getElementById('rpmGaugeValue').textContent
+            };
+            
+             // Tampilkan popup
+            const durationMessage = `Session duration: ${formatTime(monitoringSession.duration)}`;
+            const finalValuesMessage = `Final values recorded:\nVoltage: ${monitoringSession.finalValues.voltage} V\nCurrent: ${monitoringSession.finalValues.current} A\nPower: ${monitoringSession.finalValues.power} W`;
+            
+            showPopup(`${durationMessage}\n\n${finalValuesMessage}`);
+            
+            // Enable/disable buttons
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            
+            // Stop timer
+            clearInterval(timerInterval);
+            
+            // Remove all listeners
+            function removeFirebaseListeners() {
+                dataRef1.off('value');
+                dataRef2.off('value');
+                dataRef3.off('value');
+                dataRef4.off('value');
+                dataRef5.off('value');
+                dataRef6.off('value');
+                dataRef7.off('value');
+            }
+            
+            console.log('Monitoring stopped');
+        }
+        
+        // Event handlers for buttons
+        startButton.addEventListener('click', startMonitoring);
+        stopButton.addEventListener('click', stopMonitoring);
+
+        function formatForExport(data) {
+            const formatted = {
+                info: {
+                    startTime: formatFullWIB(new Date(data.startTime)),
+                    endTime: data.endTime ? formatFullWIB(new Date(data.endTime)) : null,
+                    duration: data.duration ? formatTime(data.duration) : null
+                },
+                finalValues: data.finalValues,
+                data: {}
+            };
+            
+            // Format data points
+            Object.keys(data.data).forEach(key => {
+                formatted.data[key] = data.data[key].map(item => {
+                    return {
+                        waktu: formatWIB(new Date(item.timestamp)),
+                        nilai: item.value,
+                        satuan: getUnit(key)
+                    };
+                });
+            });
+            
+            return formatted;
+        }
+
+        function getUnit(key) {
+            const units = {
+                voltage: 'V',
+                current: 'A',
+                power: 'W',
+                energy: 'kWh',
+                temperature: '°C',
+                battery: '%',
+                rpm: 'RPM'
+            };
+            return units[key] || '';
+        }
+
+        function exportSessionData() {
+            if (!monitoringSession.startTime) {
+                alert("No monitoring data available");
+                return;
+            }
+            
+            // Buat salinan data untuk diubah format timestamonya
+            const sessionDataToExport = JSON.parse(JSON.stringify(monitoringSession));
+            
+            // Format waktu mulai dan selesai
+            sessionDataToExport.startTime = formatFullWIB(new Date(sessionDataToExport.startTime));
+            if (sessionDataToExport.endTime) {
+                sessionDataToExport.endTime = formatFullWIB(new Date(sessionDataToExport.endTime));
+            }
+            
+            // Format timestamp data point
+            Object.keys(sessionDataToExport.data).forEach(key => {
+                sessionDataToExport.data[key] = sessionDataToExport.data[key].map(item => {
+                    return {
+                        timestamp: formatWIB(new Date(item.timestamp)),
+                        value: item.value
+                    };
+                });
+            });
+            
+            const dataStr = JSON.stringify(sessionDataToExport, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `monitoring_session_${formatFullWIB(monitoringSession.startTime).replace(/[: ]/g, '_')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Data handlers (modify your existing handlers)
+        function voltageHandler(snapshot) {
+            if (!isMonitoring) return;
+            const voltage = parseFloat(snapshot.val()) || 0;
+            document.getElementById('voltage').textContent = voltage.toFixed(2) + ' V';
+            chartData.voltage.currentValue = voltage;
+            updateChart('voltage', voltage);
+            
+            monitoringSession.data.voltage.push({
+                timestamp: new Date(),
+                value: voltage
+            });
+            
+            updateLastUpdateTime();
+            addToHistory();
+            updateHistoryTable()
+
+        }
+
+        function currentHandler(snapshot) {
+            if (!isMonitoring) return;
+            const current = parseFloat(snapshot.val()) || 0;
+            document.getElementById('current').textContent = current.toFixed(2) + ' A';
+            chartData.current.currentValue = current;
+            updateChart('current', current);
+            
+            monitoringSession.data.current.push({
+                timestamp: new Date(),
+                value: current
+            });
+            
+            updateLastUpdateTime();
+            addToHistory();
+        }
+
+        function powerHandler(snapshot) {
+            if (!isMonitoring) return;
+            const power = parseFloat(snapshot.val()) || 0;
+            document.getElementById('power').textContent = power.toFixed(1) + ' W';
+            chartData.power.currentValue = power;
+            updateChart('power', power);
+            
+            monitoringSession.data.power.push({
+                timestamp: new Date(),
+                value: power
+            });
+            
+            updateLastUpdateTime();
+            addToHistory();
+        }
+
+        function energyHandler(snapshot) {
+            if (!isMonitoring) return;
+            const energy = parseFloat(snapshot.val()) || 0;
+            document.getElementById('energy').textContent = energy.toFixed(2) + ' kWh';
+            chartData.energy.currentValue = energy;
+            updateChart('energy', energy);
+            
+            monitoringSession.data.energy.push({
+                timestamp: new Date(),
+                value: energy
+            });
+            
+            updateLastUpdateTime();
+            addToHistory();
+        }
+
+        function temperatureHandler(snapshot) {
+            if (!isMonitoring) return;
+            const tempValue = snapshot.val();
+            const temperature = parseFloat(tempValue) || 0;
+            document.getElementById('temperature').textContent = temperature.toFixed(1) + ' °C';
+            updateTemperatureDisplay(temperature);
+            
+            monitoringSession.data.temperature.push({
+                timestamp: new Date(),
+                value: temperature
+            });
+            
+            updateLastUpdateTime();
+            addToHistory();
+        }
+
+        // Fungsi untuk menampilkan popup konfirmasi
+        function showConfirmationPopup() {
+            const popup = document.getElementById('confirmationPopup');
+            popup.classList.add('active');
+            
+            // Tambahkan event listener untuk tombol
+            document.getElementById('confirmClear').addEventListener('click', function() {
+                clearTable();
+                popup.classList.remove('active');
+                showPopup("History table has been cleared successfully.");
+            }, { once: true });
+            
+            document.getElementById('cancelClear').addEventListener('click', function() {
+                popup.classList.remove('active');
+            }, { once: true });
+        }
+
+        // Fungsi untuk membersihkan tabel
+        function clearTable() {
+            displayMeasurementHistory.length = 0;
+            updateHistoryTable();
+        }
+
+        // Modifikasi event listener untuk tombol clear history
+        document.getElementById('clearHistory').addEventListener('click', function() {
+            showConfirmationPopup();
+        });
+
+        function batteryHandler(snapshot) {
+            if (!isMonitoring) return;
+            const battery = parseFloat(snapshot.val()) || 0;
+            const roundedBattery = Math.max(0, Math.min(100, Math.round(battery)));
+            updateBatteryDisplay(roundedBattery);
+            
+            monitoringSession.data.battery.push({
+                timestamp: new Date(),
+                value: roundedBattery
+            });
+            
+            updateLastUpdateTime();
+            addToHistory();
+        }
+
+        function rpmHandler(snapshot) {
+            if (!isMonitoring) return;
+            const rpm = parseFloat(snapshot.val()) || 0;
+            document.getElementById('rpmGaugeValue').textContent = Math.round(rpm);
+            updateRpmGauge(rpm);
+            
+            monitoringSession.data.rpm.push({
+                timestamp: new Date(),
+                value: rpm
+            });
+            
+            updateLastUpdateTime();
+            addToHistory();
+        }
+
+        function tpsHandler(snapshot) {
+            if (!isMonitoring) return;
+            const tps = parseFloat(snapshot.val()) || 0;
+            document.getElementById('tpsValue').textContent = Math.round(tps) + '%';
+            
+            monitoringSession.data.tps.push({
+                timestamp: new Date(),
+                value: tps
+            });
+            
+            updateLastUpdateTime();
+            addToHistory();
+        }
+                
+       // Variabel global
+let autoSaveInterval;
+const AUTO_SAVE_INTERVAL = 5000; // 5 detik
+
+window.addEventListener('DOMContentLoaded', function() {
+    // Load data
+    loadFromLocalStorage();
+
+    // Start services
+    startAutoSaveInterval();
+    
+    // First render
+    updateHistoryTable();
+});
+
+function startAutoSaveInterval() {
+    // Clear existing interval
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+    }
+    
+    // Start new interval
+    autoSaveInterval = setInterval(() => {
+        if (isMonitoring) {
+            try {
+                addToHistory();
+                saveToLocalStorage();
+                console.debug("Auto-save executed");
+            } catch (error) {
+                console.error("Auto-save error:", error);
+            }
+        }
+    }, AUTO_SAVE_INTERVAL);
+}
+        // Handle window close
+        window.addEventListener('beforeunload', function() {
+            if (isMonitoring) {
+                stopMonitoring();
+            }
+        });
+
+        // Initialize RPM Gauge
+        function initRpmGauge() {
+            const ticksContainer = document.getElementById('rpmGaugeTicks');
+            const maxRpm = 8000; // Adjust based on your max RPM
+            
+            // Create ticks and labels
+            for (let i = 0; i <= 8; i++) {
+                const rpmValue = i * 1000;
+                const angle = -135 + (i * 30); // 270° range divided by 8 segments
+                
+                // Add tick mark
+                const tick = document.createElement('div');
+                tick.className = 'gauge-tick';
+                tick.style.transform = `rotate(${angle}deg)`;
+                ticksContainer.appendChild(tick);
+                
+                // Add label
+                if (i > 0) {
+                    const label = document.createElement('div');
+                    label.className = 'gauge-tick-label';
+                    label.textContent = rpmValue/1000 + 'k';
+                    label.style.transform = `rotate(${angle}deg) translate(0, -30px) rotate(${-angle}deg)`;
+                    ticksContainer.appendChild(label);
+                }
+            }
+        }
+        
+        // Update RPM Gauge
+        function updateRpmGauge(rpm) {
+            const maxRpm = 8000; // Same as in init
+            const percentage = Math.min(100, (rpm / maxRpm) * 100);
+            const angle = -135 + (percentage * 2.7); // 270° range
+            
+            document.getElementById('rpmGaugeFill').style.transform = `rotate(${angle}deg)`;
+            document.getElementById('rpmGaugeValue').textContent = rpm;
+        }
+        
+        // Initialize gauge when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            initRpmGauge();
+            // ... (keep other initialization code) ...
+        });
+        
+        // Modify the RPM data listener
+        dataRef7.on('value', function(snapshot) {
+            var rpm = snapshot.val() || 0;
+            updateRpmGauge(Math.round(rpm));
+            updateLastUpdateTime();
+        });
+
+
+
+        // Data storage for charts
+        const chartData = {
+            voltage: {
+                labels: [],
+                values: [],
+                maxPoints: 5,
+                chart: null,
+                currentValue: 0
+            },
+            current: {
+                labels: [],
+                values: [],
+                maxPoints: 5,
+                chart: null,
+                currentValue: 0
+            },
+            power: {
+                labels: [],
+                values: [],
+                maxPoints: 5,
+                chart: null,
+                currentValue: 0
+            },
+            energy: {
+                labels: [],
+                values: [],
+                maxPoints: 5,
+                chart: null,
+                currentValue: 0
+            }
+        };
+
+        // Initialize all charts
+        function initializeCharts() {
+            // Voltage Chart
+            const voltageCtx = document.getElementById('voltageChart').getContext('2d');
+            chartData.voltage.chart = new Chart(voltageCtx, {
+                ...chartConfig,
+                data: {
+                    labels: chartData.voltage.labels,
+                    datasets: [{
+                        label: 'Voltage (V)',
+                        data: chartData.voltage.values,
+                        borderColor: '#4A90E2',
+                        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    ...chartConfig.options,
+                    scales: {
+                        y: {
+                            ...chartConfig.options.scales.y,
+                            min: 0,  // Contoh: voltage minimal 12V
+                            max: 50    // Contoh: voltage maksimal 15V
+                        }
+                    }
+                }
+            });
+
+            // Current Chart
+            const currentCtx = document.getElementById('currentChart').getContext('2d');
+            chartData.current.chart = new Chart(currentCtx, {
+                ...chartConfig,
+                data: {
+                    labels: chartData.current.labels,
+                    datasets: [{
+                        label: 'Current (A)',
+                        data: chartData.current.values,
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                }
+            });
+
+            // Power Chart
+            const powerCtx = document.getElementById('powerChart').getContext('2d');
+            chartData.power.chart = new Chart(powerCtx, {
+                ...chartConfig,
+                data: {
+                    labels: chartData.power.labels,
+                    datasets: [{
+                        label: 'Power (W)',
+                        data: chartData.power.values,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                }
+            });
+
+            // Energy Chart
+            const energyCtx = document.getElementById('energyChart').getContext('2d');
+            chartData.energy.chart = new Chart(energyCtx, {
+                ...chartConfig,
+                data: {
+                    labels: chartData.energy.labels,
+                    datasets: [{
+                        label: 'Energy (kWh)',
+                        data: chartData.energy.values,
+                        borderColor: '#f39c12',
+                        backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                }
+            });
+        }
+
+        // Update chart data
+        function updateChart(chartName, value) {
+    const now = new Date();
+    const roundedValue = Math.round(value * 100) / 100; // Pembulatan 2 desimal
+    
+    // Tambahkan data baru setiap 3 detik
+    if (!chartData[chartName].lastUpdate || (now - chartData[chartName].lastUpdate) > 3000) {
+        const timeString = now.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+
+        chartData[chartName].labels.push(timeString);
+        chartData[chartName].values.push(roundedValue);
+        chartData[chartName].lastUpdate = now;
+    } else {
+        // Update nilai terakhir
+        const lastIndex = chartData[chartName].values.length - 1;
+        if (lastIndex >= 0) {
+            chartData[chartName].values[lastIndex] = roundedValue;
+        }
+    }
+
+    // Pertahankan max 10 data point
+    if (chartData[chartName].labels.length > 5) {
+        chartData[chartName].labels.shift();
+        chartData[chartName].values.shift();
+    }
+
+    chartData[chartName].chart.update();
+}
+        
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            if (connected) {
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.className = 'connection-status connected';
+            } else {
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.className = 'connection-status disconnected';
+            }
+        }
+        
+        // Check Firebase connection
+        var connectedRef = database.ref('.info/connected');
+        connectedRef.on('value', function(snapshot) {
+            updateConnectionStatus(snapshot.val() === true);
+        });
+        
+        // Function to update last update time
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const dateOptions = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric'
+            };
+            const timeOptions = {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            const dateString = now.toLocaleDateString('en-US', dateOptions);
+            const timeString = now.toLocaleTimeString('en-US', timeOptions);
+            const dateTimeString = `${dateString} ${timeString} WIB`;
+            document.getElementById('lastUpdate').textContent = dateTimeString;
+        }
+        
+        // Function to update battery display
+        function updateBatteryDisplay(percentage) {
+            const batteryFill = document.getElementById('batteryFill');
+            const batteryPercentage = document.getElementById('batteryPercentage');
+            
+            batteryFill.style.width = percentage + '%';
+            batteryPercentage.textContent = percentage + '%';
+            
+            // Update battery color based on percentage
+            batteryFill.className = 'battery-fill';
+            if (percentage <= 20) {
+                batteryFill.classList.add('low');
+            } else if (percentage <= 50) {
+                batteryFill.classList.add('medium');
+            } else {
+                batteryFill.classList.add('high');
+            }
+        }
+        
+        // Function to update temperature display
+        function updateTemperatureDisplay(temperature) {
+            const temperatureFill = document.getElementById('temperatureFill');
+            const temperatureElement = document.getElementById('temperature');
+            
+            // Calculate percentage (assuming 0-100°C range)
+            const percentage = Math.min(100, Math.max(0, temperature));
+            temperatureFill.style.height = percentage + '%';
+            temperatureElement.textContent = temperature.toFixed(1) + '°C';
+            
+            // Update color based on temperature
+            if (temperature <= 30) {
+                temperatureFill.style.backgroundColor = '#4A90E2';
+            } else if (temperature <= 60) {
+                temperatureFill.style.backgroundColor = '#f39c12';
+            } else {
+                temperatureFill.style.backgroundColor = '#e74c3c';
+            }
+        }
+        
+        // Function to update relay status display
+        function updateRelayStatusDisplay(relayNumber, status) {
+            const switchElement = document.getElementById(`relay${relayNumber}Switch`);
+            const statusElement = document.getElementById(`relay${relayNumber}Status`);
+            
+            switchElement.checked = status;
+            statusElement.textContent = status ? 'ON' : 'OFF';
+            statusElement.className = status ? 'relay-status active' : 'relay-status';
+        }
+        
+        // Function to control relay
+        function controlRelay(relayNumber, status) {
+            if (!isConnected) {
+                alert('Firebase connection lost. Please wait for reconnection.');
+                return;
+            }
+            
+            const relayRef = database.ref(`relays/relay${relayNumber}`);
+            relayRef.set(status).then(() => {
+                console.log(`Relay ${relayNumber} set to ${status ? 'ON' : 'OFF'}`);
+            }).catch((error) => {
+                console.error('Error controlling relay:', error);
+                alert('Failed to control relay. Please try again.');
+            });
+        }
+        
+        // Add event listeners for relay switches
+        document.getElementById('relay1Switch').addEventListener('change', function() {
+            controlRelay(1, this.checked);
+        });
+        
+        document.getElementById('relay2Switch').addEventListener('change', function() {
+            controlRelay(2, this.checked);
+        });
+        
+        document.getElementById('relay3Switch').addEventListener('change', function() {
+            controlRelay(3, this.checked);
+        });
+        
+        // Listen for relay status changes from Firebase
+        relay1Ref.on('value', function(snapshot) {
+            const status = snapshot.val() || false;
+            updateRelayStatusDisplay(1, status);
+        });
+        
+        relay2Ref.on('value', function(snapshot) {
+            const status = snapshot.val() || false;
+            updateRelayStatusDisplay(2, status);
+        });
+        
+        relay3Ref.on('value', function(snapshot) {
+            const status = snapshot.val() || false;
+            updateRelayStatusDisplay(3, status);
+        });
+        
+        // Fetch monitoring data from Firebase and update the page
+        dataRef1.on('value', function(snapshot) {
+            var voltage = snapshot.val() || 0;
+            document.getElementById('voltage').textContent = voltage.toFixed(0) + ' V';
+            chartData.voltage.currentValue = voltage;
+            updateChart('voltage', voltage);
+            updateLastUpdateTime(); 
+        });
+        
+        dataRef2.on('value', function(snapshot) {
+            var current = snapshot.val() || 0;
+            document.getElementById('current').textContent = current.toFixed(2) + ' A';
+            chartData.current.currentValue = current;
+            updateChart('current', current);
+            updateLastUpdateTime();
+        });
+        
+        dataRef3.on('value', function(snapshot) {
+            var power = snapshot.val() || 0;
+            document.getElementById('power').textContent = power.toFixed(0) + ' W';
+            chartData.power.currentValue = power;
+            updateChart('power', power);
+            updateLastUpdateTime();
+        });
+        
+        dataRef4.on('value', function(snapshot) {
+            var energy = snapshot.val() || 0;
+            document.getElementById('energy').textContent = energy.toFixed(0) + ' kWh';
+            chartData.energy.currentValue = energy;
+            updateChart('energy', energy);
+            updateLastUpdateTime();
+        });
+        
+        dataRef5.on('value', function(snapshot) {
+            console.log("Raw temperature data:", snapshot.val());
+            var temperature = parseFloat(snapshot.val()) || 0; // Pastikan di-parse ke float
+            console.log("Parsed temperature:", temperature);
+            document.getElementById('temperature').textContent = temperature.toFixed(1) + ' °C';
+            updateTemperatureDisplay(temperature);
+            updateLastUpdateTime();
+        });
+        
+        dataRef6.on('value', function(snapshot) {
+            var battery = snapshot.val() || 0;
+            // Pastikan nilai antara 0-100 dan bulatkan
+            var roundedBattery = Math.max(0, Math.min(100, Math.round(battery)));
+            updateBatteryDisplay(roundedBattery);
+            updateLastUpdateTime();
+        });
+        
+        dataRef7.on('value', function(snapshot) {
+            var rpm = snapshot.val() || 0;
+            document.getElementById('rpm').textContent = Math.round(rpm);
+            updateLastUpdateTime();
+        });
+        
+        // Function to keep charts updating
+        function keepChartsAlive() {
+            updateChart('voltage', chartData.voltage.currentValue);
+            updateChart('current', chartData.current.currentValue);
+            updateChart('power', chartData.power.currentValue);
+            updateChart('energy', chartData.energy.currentValue);
+        }
+
+        // Update last update time immediately on load
+        updateLastUpdateTime();
+
+        // Update the last update time every 1 second
+        setInterval(updateLastUpdateTime, 1000);
+
+        // Keep charts updating every 5 seconds
+        setInterval(keepChartsAlive, 1000); 
+        
+        // Initialize charts when the page loads
+        window.addEventListener('DOMContentLoaded', initializeCharts);
+        
+        // Handle offline/online events
+        window.addEventListener('online', function() {
+            console.log('Network connection restored');
+        });
+        
+        window.addEventListener('offline', function() {
+            console.log('Network connection lost');
+            updateConnectionStatus(false);
+        });
+    </script>
+</body>
+</html>
