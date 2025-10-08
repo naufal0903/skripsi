@@ -11,6 +11,41 @@
             padding: 0;
             box-sizing: border-box;
         }
+
+        .control-button {
+    padding: 10px 25px;
+    border: none;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.control-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+#resetEnergyBtn {
+    background-color: #e74c3c;
+    color: white;
+    padding: 8px 15px;
+    font-size: 0.8rem;
+}
+
+#resetEnergyBtn:hover {
+    background-color: #c0392b;
+}
+
+#resetEnergyBtn:disabled {
+    background-color: #7f8c8d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
         
         body {
             background-color: #121212;
@@ -727,7 +762,13 @@
                         <div class="battery-fill" id="batteryFill"></div>
                     </div>
                     <div class="battery-percentage" id="batteryPercentage">0%</div>
-                    
+                    <div style="margin-top: 20px; text-align: center;">
+                    <div class="metric-label">Total Energy Consumption</div>
+                        <div class="metric-value" id="totalEnergyWh">0.0 Wh</div>
+                        <button class="control-button" id="resetEnergyBtn" style="background-color: #e74c3c; margin-top: 10px; padding: 8px 15px; font-size: 0.8rem;">
+                            Reset Energy
+                        </button>
+                    </div>
                     <div style="margin-top: 30px;">
                         <div class="metrics-row">
                             <span class="metric-label">Voltage:</span>
@@ -839,7 +880,7 @@
                     <th>Voltage (V)</th>
                     <th>Current (A)</th>
                     <th>Power (W)</th>
-                    <th>Energy (kWh)</th>
+                    <th>Energy (Wh)</th>  
                     <th>Temp (°C)</th>
                     <th>Battery (%)</th>
                     <th>RPM</th>
@@ -1784,6 +1825,7 @@ function startAutoSaveInterval() {
                 }
             });
 
+
             // Current Chart
             const currentCtx = document.getElementById('currentChart').getContext('2d');
             chartData.current.chart = new Chart(currentCtx, {
@@ -1838,6 +1880,49 @@ function startAutoSaveInterval() {
                 }
             });
         }
+
+        // Firebase reference untuk energy Wh
+var energyWhRef = database.ref('monitoring/Final_Energy (Wh)');
+var energyControlRef = database.ref('energy_control');
+
+// Fungsi untuk update display energy Wh
+function updateEnergyWhDisplay(energyWh) {
+    document.getElementById('totalEnergyWh').textContent = energyWh.toFixed(1) + ' Wh';
+}
+
+// Fungsi untuk reset energy via web
+function resetEnergyFromWeb() {
+    if (confirm("Are you sure you want to reset the energy counter to 0?")) {
+        energyControlRef.update({
+            reset_command: true
+        }).then(() => {
+            console.log("Reset command sent to Arduino");
+            showPopup("Reset command sent to device. Energy counter will be reset to 0.");
+        }).catch((error) => {
+            console.error("Error sending reset command:", error);
+            alert("Failed to send reset command. Please try again.");
+        });
+    }
+}
+
+// Event listener untuk tombol reset
+document.getElementById('resetEnergyBtn').addEventListener('click', resetEnergyFromWeb);
+
+// Listen untuk perubahan data energy Wh dari Firebase
+energyWhRef.on('value', function(snapshot) {
+    const energyWh = parseFloat(snapshot.val()) || 0;
+    updateEnergyWhDisplay(energyWh);
+});
+
+// Tambahkan juga listener untuk data energy di bagian monitoring reguler
+dataRef4.on('value', function(snapshot) {
+    var energy = snapshot.val() || 0;
+    document.getElementById('energy').textContent = energy.toFixed(0) + ' kWh';
+    // Juga update chart energy jika ada
+    chartData.energy.currentValue = energy;
+    updateChart('energy', energy);
+    updateLastUpdateTime();
+});
 
         // Update chart data
         function updateChart(chartName, value) {
